@@ -62,13 +62,25 @@ def main():
 
     print ('Loading Dataset.')
     dataset = load_dataset("nielsr/eurosat-demo")['train']
-    dataset = dataset.with_transform(transforms)
-    dataloader = DataLoader(
-        dataset,
+    dataset = dataset.train_test_split(test_size=0.2, seed=42)
+    train_dataset = dataset['train'].with_transform(transforms)
+    test_dataset = dataset['test'].with_transform(transforms)
+
+    batch_size = 4
+    num_workers = 2
+    train_dataloader = DataLoader(
+        train_dataset,
         collate_fn=collate_fn,
-        batch_size=4,
+        batch_size=batch_size,
         shuffle=True,
-        num_workers=2
+        num_workers=num_workers
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        collate_fn=collate_fn,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers
     )
 
 
@@ -83,27 +95,10 @@ def main():
 
     print ('Training.')
     print ('[`epoch`, `batch_idx`] loss: `loss`')
-    for epoch in range(10):  # loop over the dataset multiple times
-
-        running_loss = 0.0
-        for i, batch in enumerate(dataloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = batch["pixel_values"].to(device), batch["labels"].to(device)
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            # print statistics
-            running_loss += loss.item()
-            if i % 2000 == 1999:    # print every 2000 mini-batches
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-                running_loss = 0.0
+    num_epochs = 100
+    for epoch in range(num_epochs):
+        train_one_epoch(train_dataloader, device, optimizer, net, criterion, epoch)
+        test_model(test_dataloader, device, net)
     print('Finished Training\n')
 
 
@@ -111,9 +106,45 @@ def main():
     PATH = './cnn.pth'
     torch.save(net.state_dict(), PATH)
 
+def train_one_epoch(dataloader, device, optimizer, net, criterion, epoch):
+    net.train()
+    running_loss = 0.0
+    for i, batch in enumerate(dataloader, 0):
+        # get the inputs; data is a list of [inputs, labels]
+        inputs, labels = batch["pixel_values"].to(device), batch["labels"].to(device)
 
-    # FIXME train/test split and check results
-    print ('\nFIXME - create train/test split and check results.')
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = net(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        # print statistics
+        running_loss += loss.item()
+        if i % 2000 == 1999:    # print every 2000 mini-batches
+            print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+            running_loss = 0.0
+
+def test_model(testloader, device, net):
+    net.eval()
+    correct = 0
+    total = 0
+    # since we're not training, we don't need to calculate the gradients for our outputs
+    with torch.no_grad():
+        for i, batch in enumerate(testloader, 0):
+            images, labels = batch["pixel_values"].to(device), batch["labels"].to(device)
+
+            # calculate outputs by running images through the network
+            outputs = net(images)
+            # the class with the highest energy is what we choose as prediction
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print(f'Accuracy of the network on {total} test images: {100 * correct / total} %')
 
 if __name__ == '__main__':
     main()
