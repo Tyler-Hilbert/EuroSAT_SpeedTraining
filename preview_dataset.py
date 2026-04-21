@@ -16,10 +16,12 @@ def main():
 def load_satellite_dataset(shuffle):
     print ('Loading dataset.')
     ds = load_dataset("nielsr/eurosat-demo")
+    ds = ds['train']
+
     if shuffle:
         print ('Shuffling dataset')
         random_seed = random.randint(0, 10000)
-        ds = ds['train'].shuffle(seed=random_seed)
+        ds = ds.shuffle(seed=random_seed)
     return ds
 
 # Iterates over `ds` and returns count along with example for each label
