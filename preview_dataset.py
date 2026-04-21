@@ -15,8 +15,7 @@ def main():
 # Loads the dataset from HuggingFace
 def load_satellite_dataset(shuffle):
     print ('Loading dataset.')
-    ds = load_dataset("nielsr/eurosat-demo")
-    ds = ds['train']
+    ds = load_dataset("nielsr/eurosat-demo", split="train")
 
     if shuffle:
         print ('Shuffling dataset')
