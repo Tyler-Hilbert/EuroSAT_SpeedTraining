@@ -1,7 +1,7 @@
 # https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 # https://huggingface.co/docs/datasets/quickstart#vision
-# Trains a CNN for euro_sat
-# Gemini updated hyperparameters
+# Trains a CNN for euro_sat using tutorials.
+#   Note: This is currently as close to the examples as possible and NOT optimized.
 
 import torch
 from torch.utils.data import DataLoader
@@ -15,6 +15,7 @@ from datasets import load_dataset
 
 
 transform = transforms.Compose([
+    transforms.Resize((32, 32)), # Downsize EuroSAT (64x64) to CIFAR-10 size (32x32)
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
@@ -34,15 +35,13 @@ def collate_fn(examples):
     labels = torch.tensor(labels)
     return {"pixel_values": pixel_values, "labels": labels}
 
-'''
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
-        # Changed 16 * 5 * 5 to 16 * 13 * 13
-        self.fc1 = nn.Linear(16 * 13 * 13, 120)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
@@ -54,53 +53,7 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-'''
 
-# Gemini generated
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        # Block 1: 3 channels -> 32 channels
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-
-        # Block 2: 32 channels -> 64 channels
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-
-        # Block 3 (NEW): 64 channels -> 128 channels
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-
-        # --- THE MATH FOR FC1 ---
-        # 1. Start: 64x64 image
-        # 2. Pool 1 cuts it to: 32x32
-        # 3. Pool 2 cuts it to: 16x16
-        # 4. Pool 3 cuts it to: 8x8
-        # Flattened size = 128 channels * 8 height * 8 width = 8192
-        self.fc1 = nn.Linear(128 * 8 * 8, 512)
-
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, 10)
-
-        # Dropout to prevent our larger network from memorizing the data
-        self.dropout = nn.Dropout(p=0.5)
-
-    def forward(self, x):
-        # Pass through Conv blocks
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
-
-        # Flatten
-        x = torch.flatten(x, 1)
-
-        # Pass through Fully Connected layers with Dropout
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.dropout(F.relu(self.fc2(x)))
-
-        # Output layer (no dropout)
-        x = self.fc3(x)
-        return x
 
 def main():
     print ('Examples:\nhttps://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html\nhttps://huggingface.co/docs/datasets/quickstart#vision\n')
@@ -115,7 +68,7 @@ def main():
     train_dataset = dataset['train'].with_transform(transforms)
     test_dataset = dataset['test'].with_transform(transforms)
 
-    batch_size = 32
+    batch_size = 4
     num_workers = 2
     train_dataloader = DataLoader(
         train_dataset,
@@ -155,6 +108,7 @@ def main():
     PATH = './cnn.pth'
     torch.save(net.state_dict(), PATH)
 
+
 def train_one_epoch(dataloader, device, optimizer, net, criterion, epoch):
     net.train()
     running_loss = 0.0
@@ -177,6 +131,7 @@ def train_one_epoch(dataloader, device, optimizer, net, criterion, epoch):
             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 200:.3f}')
             running_loss = 0.0
 
+
 def test_model(testloader, device, net):
     net.eval()
     correct = 0
@@ -194,6 +149,7 @@ def test_model(testloader, device, net):
             correct += (predicted == labels).sum().item()
 
     print(f'Accuracy of the network on {total} test images: {100 * correct / total} %')
+
 
 if __name__ == '__main__':
     main()
