@@ -1,3 +1,6 @@
+# EuroSAT ResNet-18
+A vibe-coded ResNet-18 model ≈98% accuracy on EuroSAT.  
+
 # Usage
 ## Installation
 ```
@@ -13,4 +16,4 @@ python -m pip install torchvision
 `python preview_dataset.py`  
 
 ## Train
-`python train_cnn.py`  
+`python train.py`  
