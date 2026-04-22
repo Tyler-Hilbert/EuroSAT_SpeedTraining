@@ -14,15 +14,27 @@ import torchvision.transforms as transforms
 from datasets import load_dataset
 
 
-transform = transforms.Compose([
-    transforms.Resize((32, 32)), # Downsize EuroSAT (64x64) to CIFAR-10 size (32x32)
+train_transform = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ColorJitter(brightness=0.5, hue=0.5),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-def transforms(examples):
-    examples["pixel_values"] = [transform(image.convert("RGB")) for image in examples["image"]]
+test_transform = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+def apply_train_transforms(examples):
+    examples["pixel_values"] = [train_transform(image.convert("RGB")) for image in examples["image"]]
     return examples
+
+def apply_test_transforms(examples):
+    examples["pixel_values"] = [test_transform(image.convert("RGB")) for image in examples["image"]]
+    return examples
+
 
 def collate_fn(examples):
     images = []
@@ -34,6 +46,7 @@ def collate_fn(examples):
     pixel_values = torch.stack(images)
     labels = torch.tensor(labels)
     return {"pixel_values": pixel_values, "labels": labels}
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -58,6 +71,7 @@ class Net(nn.Module):
 def main():
     print ('Examples:\nhttps://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html\nhttps://huggingface.co/docs/datasets/quickstart#vision\n')
 
+
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu" # https://docs.pytorch.org/tutorials/beginner/basics/buildmodel_tutorial.html
     print(f"Using {device} device\n")
 
@@ -65,8 +79,8 @@ def main():
     print ('Loading Dataset.')
     dataset = load_dataset("nielsr/eurosat-demo")['train']
     dataset = dataset.train_test_split(test_size=0.2, seed=42)
-    train_dataset = dataset['train'].with_transform(transforms)
-    test_dataset = dataset['test'].with_transform(transforms)
+    train_dataset = dataset['train'].with_transform(apply_train_transforms)
+    test_dataset = dataset['test'].with_transform(apply_test_transforms)
 
     batch_size = 4
     num_workers = 2
