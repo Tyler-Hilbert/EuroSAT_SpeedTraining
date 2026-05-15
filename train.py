@@ -92,7 +92,7 @@ def main():
     net = net.to(device)
 
     print('Loading loss function, optimizer, and scheduler.')
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.Adam(net.parameters(), lr=0.0005)
     
     num_epochs = 30 
